@@ -1,5 +1,6 @@
 import './globals.css';
 import localFont from 'next/font/local';
+import { Analytics } from '@vercel/analytics/react';
 
 const unzFont = localFont({
   src: '../assets/fonts/unz.ttf',
@@ -19,7 +20,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" className={unzFont.variable}>
-      <body className={unzFont.className}>{children}</body>
+      <body className={unzFont.className}>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
