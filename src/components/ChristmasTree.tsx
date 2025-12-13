@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { GuestbookEntry } from '../app/tree/[treeId]/page';
 import { Star } from 'lucide-react';
 
@@ -15,40 +16,29 @@ function getOrnamentType(index: number): OrnamentType {
   return types[index % types.length];
 }
 
-function Ornament({ type, entry }: { type: OrnamentType; entry: GuestbookEntry }) {
+function Ornament({ type, entry, isOpen, onToggle }: { type: OrnamentType; entry: GuestbookEntry; isOpen: boolean; onToggle: () => void }) {
   const baseClasses = "group cursor-pointer animate-bounce-slow";
   // 메시지 장식은 더 크고 눈에 띄게 - 글로우 효과만
   const glowClasses = "drop-shadow-[0_0_12px_currentColor,0_0_20px_currentColor] animate-pulse";
 
-  switch (type) {
-    case 'star':
-      return (
-        <div className={baseClasses}>
-          <Star className={`w-10 h-10 text-yellow-300 fill-yellow-300 ${glowClasses}`} />
-          <Tooltip message={entry.messages} letterType={entry.type} />
-        </div>
-      );
-    case 'bell':
-      return (
-        <div className={baseClasses}>
+  const ornamentContent = (() => {
+    switch (type) {
+      case 'star':
+        return <Star className={`w-10 h-10 text-yellow-300 fill-yellow-300 ${glowClasses}`} />;
+      case 'bell':
+        return (
           <div className={`w-10 h-12 bg-gradient-to-b from-yellow-400 to-yellow-600 rounded-t-full ${glowClasses} relative`}>
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-yellow-200 rounded-full"></div>
             <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-yellow-800 rounded-full"></div>
           </div>
-          <Tooltip message={entry.messages} letterType={entry.type} />
-        </div>
-      );
-    case 'candy':
-      return (
-        <div className={baseClasses}>
+        );
+      case 'candy':
+        return (
           <div className={`w-9 h-12 bg-gradient-to-b from-red-500 via-white to-red-500 ${glowClasses} rounded-full relative`}>
           </div>
-          <Tooltip message={entry.messages} letterType={entry.type} />
-        </div>
-      );
-    case 'snowflake':
-      return (
-        <div className={baseClasses}>
+        );
+      case 'snowflake':
+        return (
           <div className={`w-10 h-10 text-blue-200 ${glowClasses} relative`}>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-full h-1 bg-blue-200 absolute"></div>
@@ -57,23 +47,26 @@ function Ornament({ type, entry }: { type: OrnamentType; entry: GuestbookEntry }
               <div className="w-full h-1 bg-blue-200 absolute -rotate-45"></div>
             </div>
           </div>
-          <Tooltip message={entry.messages} letterType={entry.type} />
-        </div>
-      );
-    default: // ball
-      return (
-        <div className={baseClasses}>
+        );
+      default: // ball
+        return (
           <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-red-400 via-red-500 to-red-700 shadow-lg ${glowClasses} relative`}>
             <div className="absolute top-1 left-2 w-3 h-3 bg-white rounded-full opacity-90 blur-sm"></div>
             <div className="absolute top-2 left-3 w-1.5 h-1.5 bg-white rounded-full opacity-70"></div>
           </div>
-          <Tooltip message={entry.messages} letterType={entry.type} />
-        </div>
-      );
-  }
+        );
+    }
+  })();
+
+  return (
+    <div className={baseClasses} onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+      {ornamentContent}
+      <Tooltip message={entry.messages} letterType={entry.type} isOpen={isOpen} />
+    </div>
+  );
 }
 
-function Tooltip({ message, letterType }: { message: string; letterType: string }) {
+function Tooltip({ message, letterType, isOpen }: { message: string; letterType: string; isOpen: boolean }) {
   const getLetterClass = (type: string) => {
     switch (type) {
       case 'snowflake':
@@ -96,7 +89,7 @@ function Tooltip({ message, letterType }: { message: string; letterType: string 
   const letterClass = getLetterClass(letterType);
 
   return (
-    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-64 z-[100]">
+    <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 z-[100] ${isOpen ? 'block' : 'hidden group-hover:block'}`}>
       <div className={`${letterClass} rounded-lg shadow-2xl p-4 min-h-[100px] relative`}>
         <p className="text-sm relative z-10 leading-relaxed whitespace-pre-wrap">{message}</p>
       </div>
@@ -106,8 +99,19 @@ function Tooltip({ message, letterType }: { message: string; letterType: string 
 }
 
 export function ChristmasTree({ entries }: ChristmasTreeProps) {
+  const [openOrnamentId, setOpenOrnamentId] = useState<string | null>(null);
+
+  const handleOrnamentToggle = (entryId: string) => {
+    setOpenOrnamentId(openOrnamentId === entryId ? null : entryId);
+  };
+
+  // 외부 클릭 시 tooltip 닫기
+  const handleOutsideClick = () => {
+    setOpenOrnamentId(null);
+  };
+
   return (
-    <div className="relative z-20">
+    <div className="relative z-20" onClick={handleOutsideClick}>
       {/* Tree Star - 더 빛나게 */}
       <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10">
         <Star className="w-14 h-14 text-yellow-300 fill-yellow-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.8)] animate-pulse" />
@@ -145,7 +149,12 @@ export function ChristmasTree({ entries }: ChristmasTreeProps) {
               top: `${entry.position.y}%`,
             }}
           >
-            <Ornament type={getOrnamentType(index)} entry={entry} />
+            <Ornament 
+              type={getOrnamentType(index)} 
+              entry={entry} 
+              isOpen={openOrnamentId === entry.id}
+              onToggle={() => handleOrnamentToggle(entry.id)}
+            />
           </div>
         ))}
       </div>
