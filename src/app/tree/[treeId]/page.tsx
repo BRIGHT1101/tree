@@ -5,9 +5,16 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChristmasTree } from '@/components/ChristmasTree';
 import { GuestbookForm } from '@/components/GuestbookForm';
 import { CreateTreeModal } from '@/components/CreateTreeModal';
-import { Plus, Home, Copy, Check } from 'lucide-react';
+import { Plus, Home, Copy, Check, MessageSquare } from 'lucide-react';
 import { getTree } from '@/app/actions/tree';
 import { getMessages, createMessage } from '@/app/actions/message';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 
 export interface GuestbookEntry {
   id: string;
@@ -29,6 +36,7 @@ export default function TreePage() {
   const [treeData, setTreeData] = useState<TreeData | null>(null);
   const [entries, setEntries] = useState<GuestbookEntry[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -88,6 +96,7 @@ export default function TreePage() {
       };
 
       setEntries([...entries, newEntry]);
+      setIsDrawerOpen(false); // 메시지 제출 후 drawer 닫기
     } catch (error) {
       console.error('Failed to add entry:', error);
       alert('메시지 작성에 실패했습니다. 다시 시도해주세요.');
@@ -210,10 +219,26 @@ export default function TreePage() {
         </div>
       </div>
 
-      {/* Guestbook Form */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-20">
-        <GuestbookForm onSubmit={handleAddEntry} />
-      </div>
+      {/* Guestbook Form Drawer */}
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <DrawerTrigger asChild>
+          <button
+            className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white rounded-full p-3.5 shadow-lg transition-all hover:scale-110 z-20 flex items-center gap-2"
+            aria-label="메시지 작성"
+          >
+            <MessageSquare size={20} />
+            <span className="hidden sm:inline">메시지 작성</span>
+          </button>
+        </DrawerTrigger>
+        <DrawerContent className="bg-slate-800 border-slate-600">
+          <DrawerHeader className="text-center">
+            <DrawerTitle className="text-gray-200 text-xl">메시지 작성</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-8">
+            <GuestbookForm onSubmit={handleAddEntry} />
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Create Tree Button */}
       <button
