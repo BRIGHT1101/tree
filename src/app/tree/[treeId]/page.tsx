@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChristmasTree } from '@/components/ChristmasTree';
 import { GuestbookForm } from '@/components/GuestbookForm';
 import { CreateTreeModal } from '@/components/CreateTreeModal';
-import { Plus, Home, Copy, Check, MessageSquare } from 'lucide-react';
+import { Plus, Share2, MessageSquare } from 'lucide-react';
 import { getTree } from '@/app/actions/tree';
 import { getMessages, createMessage } from '@/app/actions/message';
 import {
@@ -37,7 +37,6 @@ export default function TreePage() {
   const [entries, setEntries] = useState<GuestbookEntry[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -118,11 +117,23 @@ export default function TreePage() {
   const handleShare = async () => {
     const url = window.location.href;
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Web Share API 사용 (모바일에서 네이티브 공유)
+      if (navigator.share) {
+        await navigator.share({
+          title: `${treeData?.nickname}의 크리스마스 트리`,
+          text: '크리스마스 트리를 확인해보세요!',
+          url: url,
+        });
+      } else {
+        // Web Share API가 없으면 클립보드에 복사
+        await navigator.clipboard.writeText(url);
+        alert('링크가 복사되었습니다!');
+      }
     } catch (err) {
-      console.error('Failed to copy:', err);
+      // 사용자가 공유를 취소한 경우는 에러로 처리하지 않음
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Failed to share:', err);
+      }
     }
   };
 
@@ -192,22 +203,13 @@ export default function TreePage() {
         <h1 className="text-gray-200 text-shadow-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-3xl md:text-4xl">{treeData.nickname}의 트리</h1>
       </div>
 
-      {/* Home button */}
-      <button
-        onClick={() => router.push('/')}
-        className="absolute top-8 right-8 bg-slate-800/60 hover:bg-slate-700/80 backdrop-blur-sm text-gray-200 rounded-full p-2 shadow-lg transition-all hover:scale-110 z-50 border border-slate-600 pointer-events-auto"
-        aria-label="홈으로"
-      >
-        <Home size={20} />
-      </button>
-
       {/* Share button */}
       <button
         onClick={handleShare}
-        className="absolute top-20 right-8 bg-slate-800/60 hover:bg-slate-700/80 backdrop-blur-sm text-gray-200 rounded-full p-2 shadow-lg transition-all hover:scale-110 z-50 mt-4 border border-slate-600 pointer-events-auto"
-        aria-label="링크 복사"
+        className="absolute top-8 right-8 bg-slate-800/60 hover:bg-slate-700/80 backdrop-blur-sm text-gray-200 rounded-full p-2 shadow-lg transition-all hover:scale-110 z-50 border border-slate-600 pointer-events-auto"
+        aria-label="링크 공유"
       >
-        {copied ? <Check size={20} /> : <Copy size={20} />}
+        <Share2 size={20} />
       </button>
 
       {/* Christmas Tree - 부각되게 */}
