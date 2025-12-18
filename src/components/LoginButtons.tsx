@@ -9,11 +9,20 @@ export function LoginButtons() {
   const handleSignIn = async (provider: Provider) => {
     try {
       const supabase = createClient();
+      const options: any = {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      };
+      
+      // 카카오 로그인 시 이메일 요구 제외
+      if (provider === 'kakao') {
+        options.queryParams = {
+          scope: 'profile_nickname', // 이메일 제외하고 닉네임만 요청
+        };
+      }
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options,
       });
 
       if (error) {
