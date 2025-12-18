@@ -352,14 +352,19 @@ export default function TreePage() {
   };
 
   const handleCreateTree = async (nickname: string) => {
+    if (!currentUserId) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    
     try {
       const { createTree } = await import('@/app/actions/tree');
-      const newTreeId = await createTree(nickname);
+      const newTreeId = await createTree(nickname, currentUserId);
       setIsModalOpen(false);
       router.push(`/tree/${newTreeId}`);
     } catch (error) {
       console.error('Failed to create tree:', error);
-      alert('트리 생성에 실패했습니다. 다시 시도해주세요.');
+      alert(error instanceof Error ? error.message : '트리 생성에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
