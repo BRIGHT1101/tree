@@ -7,11 +7,12 @@ export interface MessageData {
   tree_id: string;
   messages: string;
   type: string;
+  is_private?: boolean;
   created_at: string;
 }
 
-export async function getMessages(treeId: string): Promise<MessageData[]> {
-  const supabase = createServerClient();
+export async function getMessages(treeId: string, currentUserId?: string): Promise<MessageData[]> {
+  const supabase = await createServerClient();
   
   // treeId가 short_id인 경우, 먼저 실제 UUID를 찾아야 함
   const { data: treeData } = await supabase
@@ -24,6 +25,9 @@ export async function getMessages(treeId: string): Promise<MessageData[]> {
     return [];
   }
   
+  // 현재 사용자가 트리 주인인지 확인
+  const isTreeOwner = currentUserId && treeData.id === currentUserId;
+  
   const { data, error } = await supabase
     .from('message')
     .select('*')
@@ -35,15 +39,35 @@ export async function getMessages(treeId: string): Promise<MessageData[]> {
     return [];
   }
 
-  return data || [];
+  // 비밀 메시지도 모두 반환하되, 날짜와 트리 주인 여부에 따라 내용을 숨김
+  const now = new Date();
+  const unlockDate = new Date('2026-01-01T00:00:00');
+  const isUnlocked = now >= unlockDate;
+
+  const processedMessages = (data || []).map((msg) => {
+    // 비밀 메시지인 경우
+    if (msg.is_private) {
+      // 트리 주인이 아니거나 아직 열리지 않은 날짜인 경우, 메시지 내용을 숨김
+      if (!isTreeOwner || !isUnlocked) {
+        return {
+          ...msg,
+          messages: '🎁 시간이 지나면 열리는 특별한 선물이에요', // 내용 대신 비밀 메시지 표시
+        };
+      }
+    }
+    return msg;
+  });
+
+  return processedMessages;
 }
 
 export async function createMessage(
   treeId: string,
   messages: string,
-  type: string = 'snowflake'
+  type: string = 'snowflake',
+  isPrivate: boolean = false
 ) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // treeId가 short_id인 경우, 먼저 실제 UUID를 찾아야 함
   const { data: treeData, error: treeError } = await supabase
@@ -62,6 +86,7 @@ export async function createMessage(
       tree_id: treeData.id,
       messages,
       type,
+      is_private: isPrivate,
     })
     .select()
     .single();

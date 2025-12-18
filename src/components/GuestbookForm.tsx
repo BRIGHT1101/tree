@@ -6,7 +6,7 @@ import { Send } from 'lucide-react';
 export type LetterType = 'snowflake' | 'christmas' | 'floral' | 'simple' | 'stars' | 'winter';
 
 interface GuestbookFormProps {
-  onSubmit: (messages: string, letterType: LetterType) => void;
+  onSubmit: (messages: string, letterType: LetterType, isPrivate: boolean) => void;
 }
 
 const letterTypes: { value: LetterType; label: string; preview: string }[] = [
@@ -21,12 +21,14 @@ const letterTypes: { value: LetterType; label: string; preview: string }[] = [
 export function GuestbookForm({ onSubmit }: GuestbookFormProps) {
   const [messages, setMessages] = useState('');
   const [selectedType, setSelectedType] = useState<LetterType>('snowflake');
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (messages.trim()) {
-      onSubmit(messages, selectedType);
+      onSubmit(messages, selectedType, isPrivate);
       setMessages('');
+      setIsPrivate(false);
     }
   };
 
@@ -82,6 +84,55 @@ export function GuestbookForm({ onSubmit }: GuestbookFormProps) {
           rows={3}
           maxLength={100}
         />
+      </div>
+
+      {/* 비밀 메시지 토글 */}
+      <div className="mb-3">
+        <label className="block text-sm text-gray-300 mb-2">메시지 타입</label>
+        <div className="grid grid-cols-2 gap-2">
+          {/* 일반 메시지 */}
+          <label
+            className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              !isPrivate
+                ? 'border-red-500 bg-red-500/20'
+                : 'border-slate-600 bg-slate-700/30 hover:border-slate-500'
+            }`}
+          >
+            <input
+              type="radio"
+              name="messageType"
+              checked={!isPrivate}
+              onChange={() => setIsPrivate(false)}
+              className="hidden"
+            />
+            <span className="text-2xl mb-1">💌</span>
+            <span className="text-xs text-gray-300 font-medium">일반 메시지</span>
+          </label>
+
+          {/* 비밀 메시지 */}
+          <label
+            className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              isPrivate
+                ? 'border-purple-500 bg-purple-500/20'
+                : 'border-slate-600 bg-slate-700/30 hover:border-slate-500'
+            }`}
+          >
+            <input
+              type="radio"
+              name="messageType"
+              checked={isPrivate}
+              onChange={() => setIsPrivate(true)}
+              className="hidden"
+            />
+            <span className="text-2xl mb-1">🎁</span>
+            <span className="text-xs text-gray-300 font-medium">비밀 선물</span>
+          </label>
+        </div>
+        {isPrivate && (
+          <p className="text-xs text-gray-400 mt-2 leading-relaxed text-center">
+            새해 첫날이 되면 트리 주인만 이 메시지를 열어볼 수 있어요 ✨
+          </p>
+        )}
       </div>
       <button
         type="submit"

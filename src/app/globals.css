@@ -48,6 +48,16 @@ body {
   animation: bounce-slow 3s ease-in-out infinite;
 }
 
+/* 각 장식마다 다른 속도와 높이를 위한 커스텀 애니메이션 */
+@keyframes bounce-slow-custom {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(calc(var(--bounce-height, 5px) * -1));
+  }
+}
+
 @keyframes scale-in {
   from {
     transform: scale(0.9);

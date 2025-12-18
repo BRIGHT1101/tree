@@ -1,28 +1,91 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { GuestbookEntry } from '../app/tree/[treeId]/page';
-import { Star } from 'lucide-react';
+import { Star, Gift, Lock } from 'lucide-react';
 
 interface ChristmasTreeProps {
   entries: GuestbookEntry[];
 }
 
 // 장식 타입 정의
-type OrnamentType = 'ball' | 'star' | 'bell' | 'candy' | 'snowflake';
+type OrnamentType = 'ball' | 'star' | 'bell' | 'candy' | 'snowflake' | 'gift' | 'secret';
 
-function getOrnamentType(index: number): OrnamentType {
+function getOrnamentType(index: number, isPrivate?: boolean): OrnamentType {
+  // 비밀 메시지는 특별한 장식 사용
+  if (isPrivate) {
+    return 'secret';
+  }
   const types: OrnamentType[] = ['ball', 'star', 'bell', 'candy', 'snowflake'];
   return types[index % types.length];
 }
 
-function Ornament({ type, entry, isOpen, onToggle }: { type: OrnamentType; entry: GuestbookEntry; isOpen: boolean; onToggle: () => void }) {
-  const baseClasses = "group cursor-pointer animate-bounce-slow";
+function Ornament({ type, entry, isOpen, isHovered, onToggle, onMouseEnter, onMouseLeave }: { 
+  type: OrnamentType; 
+  entry: GuestbookEntry; 
+  isOpen: boolean; 
+  isHovered: boolean;
+  onToggle: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const positionRef = useRef<HTMLDivElement>(null);
+  
+  // entry.id를 기반으로 일관성 있는 애니메이션 속도와 딜레이 생성
+  const idString = String(entry.id); // 문자열로 변환
+  const hash = idString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const animationDuration = 2 + (hash % 3) + (hash % 5) * 0.2; // 2.0 ~ 4.8초 사이
+  const animationDelay = (hash % 10) * 0.2; // 0 ~ 1.8초 사이
+  const bounceHeight = 3 + (hash % 4); // 3 ~ 6px 사이
+  
+  const baseClasses = `group cursor-pointer relative`;
   // 메시지 장식은 더 크고 눈에 띄게 - 글로우 효과만
   const glowClasses = "drop-shadow-[0_0_12px_currentColor,0_0_20px_currentColor] animate-pulse";
+  
+  // 인라인 스타일로 애니메이션 적용 (CSS 변수 대신 직접 키프레임 정의)
+  const animationStyle: React.CSSProperties = {
+    animation: `bounce-custom-${hash} ${animationDuration}s ease-in-out ${animationDelay}s infinite`,
+  };
+  
+  // 동적 키프레임 스타일 생성 (useEffect로 주입)
+  useEffect(() => {
+    const styleId = `bounce-animation-${hash}`;
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @keyframes bounce-custom-${hash} {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-${bounceHeight}px);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    return () => {
+      // 컴포넌트 언마운트 시 스타일 제거하지 않음 (다른 장식이 사용할 수 있음)
+    };
+  }, [hash, bounceHeight]);
 
   const ornamentContent = (() => {
     switch (type) {
+      case 'secret':
+        // 비밀 메시지 특별 장식: 선물 상자 + 자물쇠
+        return (
+          <div className={`relative ${glowClasses}`}>
+            <Gift className={`w-12 h-12 text-purple-400 fill-purple-500/80 drop-shadow-[0_0_15px_rgba(192,132,252,0.8)]`} />
+            <Lock className={`w-5 h-5 text-yellow-300 fill-yellow-400 absolute -top-1 -right-1 drop-shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse`} />
+            {/* 반짝이는 효과 */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-2 h-2 bg-yellow-300 rounded-full absolute top-1 left-2 animate-ping"></div>
+              <div className="w-1.5 h-1.5 bg-purple-300 rounded-full absolute bottom-2 right-1 animate-ping" style={{ animationDelay: '0.5s' }}></div>
+            </div>
+          </div>
+        );
       case 'star':
         return <Star className={`w-10 h-10 text-yellow-300 fill-yellow-300 ${glowClasses}`} />;
       case 'bell':
@@ -59,14 +122,50 @@ function Ornament({ type, entry, isOpen, onToggle }: { type: OrnamentType; entry
   })();
 
   return (
-    <div className={baseClasses} onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+    <div 
+      ref={positionRef}
+      className={baseClasses} 
+      style={animationStyle}
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {ornamentContent}
-      <Tooltip message={entry.messages} letterType={entry.type} isOpen={isOpen} />
+      <Tooltip message={entry.messages} letterType={entry.type} isOpen={isOpen} isHovered={isHovered} isPrivate={entry.isPrivate} positionRef={positionRef} />
     </div>
   );
 }
 
-function Tooltip({ message, letterType, isOpen }: { message: string; letterType: string; isOpen: boolean }) {
+function Tooltip({ message, letterType, isOpen, isHovered, isPrivate, positionRef }: { message: string; letterType: string; isOpen: boolean; isHovered: boolean; isPrivate?: boolean; positionRef: React.RefObject<HTMLDivElement> }) {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (positionRef.current && (isOpen || isHovered)) {
+      const updatePosition = () => {
+        if (positionRef.current) {
+          const rect = positionRef.current.getBoundingClientRect();
+          setPosition({
+            top: rect.top - 8,
+            left: rect.left + rect.width / 2,
+          });
+        }
+      };
+      updatePosition();
+      window.addEventListener('scroll', updatePosition);
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        window.removeEventListener('scroll', updatePosition);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen, isHovered, positionRef]);
+
   const getLetterClass = (type: string) => {
     switch (type) {
       case 'snowflake':
@@ -87,22 +186,63 @@ function Tooltip({ message, letterType, isOpen }: { message: string; letterType:
   };
 
   const letterClass = getLetterClass(letterType);
+  const shouldShow = (isOpen || isHovered) && mounted;
 
-  return (
-    <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 z-[100] ${isOpen ? 'block' : 'hidden group-hover:block'}`}>
-      <div className={`${letterClass} rounded-lg shadow-2xl p-4 min-h-[100px] relative`}>
-        <p className="text-sm relative z-10 leading-relaxed whitespace-pre-wrap">{message}</p>
+  if (!shouldShow) {
+    return null;
+  }
+
+  const tooltipContent = (
+    <div 
+      ref={tooltipRef}
+      className="fixed pointer-events-none"
+      style={{ 
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        transform: 'translate(-50%, -100%)',
+        zIndex: 999999,
+        marginBottom: '8px',
+      }}
+    >
+      <div className={`${letterClass} rounded-lg shadow-2xl p-4 min-h-[100px] relative pointer-events-auto w-64`}>
+        {isPrivate ? (
+          <div className="flex flex-col items-center justify-center min-h-[100px] text-gray-600">
+            <span className="text-3xl mb-3">🎁</span>
+            <p className="text-sm relative z-10 leading-relaxed text-center font-medium mb-1">
+              시간이 지나면 열리는
+            </p>
+            <p className="text-sm relative z-10 leading-relaxed text-center font-medium mb-2">
+              특별한 선물이에요
+            </p>
+            <p className="text-xs mt-1 text-gray-500 text-center leading-relaxed">
+              새해 첫날, 트리 주인만<br/>이 메시지를 열어볼 수 있어요 ✨
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm relative z-10 leading-relaxed whitespace-pre-wrap">{message}</p>
+        )}
       </div>
       <div className={`w-3 h-3 ${letterClass} border-r border-b transform rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2`}></div>
     </div>
   );
+
+  return mounted ? createPortal(tooltipContent, document.body) : null;
 }
 
 export function ChristmasTree({ entries }: ChristmasTreeProps) {
   const [openOrnamentId, setOpenOrnamentId] = useState<string | null>(null);
+  const [hoveredOrnamentId, setHoveredOrnamentId] = useState<string | null>(null);
 
   const handleOrnamentToggle = (entryId: string) => {
     setOpenOrnamentId(openOrnamentId === entryId ? null : entryId);
+  };
+
+  const handleOrnamentMouseEnter = (entryId: string) => {
+    setHoveredOrnamentId(entryId);
+  };
+
+  const handleOrnamentMouseLeave = () => {
+    setHoveredOrnamentId(null);
   };
 
   // 외부 클릭 시 tooltip 닫기
@@ -113,7 +253,7 @@ export function ChristmasTree({ entries }: ChristmasTreeProps) {
   return (
     <div className="relative z-20" onClick={handleOutsideClick}>
       {/* Tree Star - 더 빛나게 */}
-      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10">
+      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-[1]">
         <Star className="w-14 h-14 text-yellow-300 fill-yellow-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.8)] animate-pulse" />
       </div>
 
@@ -140,23 +280,32 @@ export function ChristmasTree({ entries }: ChristmasTreeProps) {
 
       {/* Ornaments (Guestbook entries) - 다양한 타입 */}
       <div className="absolute inset-0 w-full h-full">
-        {entries.map((entry, index) => (
-          <div
-            key={entry.id}
-            className="absolute"
-            style={{
-              left: `${entry.position.x}%`,
-              top: `${entry.position.y}%`,
-            }}
-          >
-            <Ornament 
-              type={getOrnamentType(index)} 
-              entry={entry} 
-              isOpen={openOrnamentId === entry.id}
-              onToggle={() => handleOrnamentToggle(entry.id)}
-            />
-          </div>
-        ))}
+        {entries.map((entry, index) => {
+          const isCurrentlyOpen = openOrnamentId === entry.id;
+          const isCurrentlyHovered = hoveredOrnamentId === entry.id;
+          const isActive = isCurrentlyOpen || isCurrentlyHovered;
+          return (
+            <div
+              key={entry.id}
+              className="absolute"
+              style={{
+                left: `${entry.position.x}%`,
+                top: `${entry.position.y}%`,
+                zIndex: isActive ? 999999 : 10 + index,
+              }}
+            >
+              <Ornament 
+                type={getOrnamentType(index, entry.isPrivate)} 
+                entry={entry} 
+                isOpen={isCurrentlyOpen}
+                isHovered={isCurrentlyHovered}
+                onToggle={() => handleOrnamentToggle(entry.id)}
+                onMouseEnter={() => handleOrnamentMouseEnter(entry.id)}
+                onMouseLeave={handleOrnamentMouseLeave}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

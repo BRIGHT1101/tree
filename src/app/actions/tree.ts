@@ -3,16 +3,31 @@
 import { createServerClient } from '@/lib/supabase-server';
 import { generateShortId } from '@/lib/short-id';
 
-export async function createTree(nickname: string) {
+export async function createTree(nickname: string, userId: string) {
   try {
-    const supabase = createServerClient();
+    if (!userId) {
+      throw new Error('로그인이 필요합니다. 먼저 로그인해주세요.');
+    }
+
+    const supabase = await createServerClient();
+    
+    // 이미 트리가 있는지 확인
+    const existingTree = await getTreeByUserId(userId);
+    if (existingTree) {
+      throw new Error('이미 트리가 있습니다. 한 사용자는 트리를 하나만 만들 수 있습니다.');
+    }
     
     // 짧은 ID 생성 (8자리)
     const shortId = generateShortId(8);
     
+    // 사용자 ID와 함께 트리 생성
     const { data, error } = await supabase
       .from('tree')
-      .insert({ nickname, short_id: shortId })
+      .insert({ 
+        nickname, 
+        short_id: shortId,
+        id: userId  // auth.users의 id를 tree 테이블의 id로 저장
+      })
       .select('short_id')
       .single();
 
@@ -40,7 +55,7 @@ export async function createTree(nickname: string) {
 }
 
 export async function getTree(treeId: string) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   
   // short_id로 조회 (UUID가 아닌 짧은 ID)
   const { data, error } = await supabase
@@ -51,6 +66,28 @@ export async function getTree(treeId: string) {
 
   if (error) {
     console.error('Error fetching tree:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function getTreeByUserId(userId: string) {
+  const supabase = await createServerClient();
+  
+  // 사용자 ID로 트리 조회
+  const { data, error } = await supabase
+    .from('tree')
+    .select('id, short_id, nickname, created_at')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    // 트리가 없는 경우 null 반환
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    console.error('Error fetching tree by user id:', error);
     return null;
   }
 
