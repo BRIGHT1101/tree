@@ -192,9 +192,9 @@ export default function TreePage() {
           // 비밀 메시지이고 (트리 주인이 아니거나 아직 열리지 않은 날짜)인 경우 isPrivate 표시
           const shouldHide = msg.is_private && (!treeOwner || !isUnlocked);
           return {
-            id: msg.id,
-            messages: msg.messages,
-            type: msg.type || 'snowflake',
+          id: msg.id,
+          messages: msg.messages,
+          type: msg.type || 'snowflake',
             isPrivate: shouldHide,
             position: positions[index] || { x: 50, y: 45 }, // 기본 위치
           };
@@ -487,13 +487,13 @@ export default function TreePage() {
 
       {/* Share and Logout buttons */}
       <div className="absolute top-8 right-8 flex gap-2 z-50">
-        <button
-          onClick={handleShare}
+      <button
+        onClick={handleShare}
           className="bg-slate-800/60 hover:bg-slate-700/80 backdrop-blur-sm text-gray-200 rounded-full p-2 shadow-lg transition-all hover:scale-110 border border-slate-600 pointer-events-auto"
-          aria-label="링크 공유"
-        >
-          <Share2 size={20} />
-        </button>
+        aria-label="링크 공유"
+      >
+        <Share2 size={20} />
+      </button>
         {currentUserId && (
           <button
             onClick={handleLogout}
@@ -543,36 +543,36 @@ export default function TreePage() {
 
       {/* Guestbook Form Drawer - 트리 주인이 아닌 경우에만 표시 */}
       {!isTreeOwner && (
-        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-          <DrawerTrigger asChild>
-            <button
-              className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white rounded-full p-3.5 shadow-lg transition-all hover:scale-110 z-20 flex items-center gap-2"
-              aria-label="메시지 작성"
-            >
-              <MessageSquare size={20} />
-              <span className="hidden sm:inline">메시지 작성</span>
-            </button>
-          </DrawerTrigger>
-          <DrawerContent className="bg-slate-800 border-slate-600">
-            <DrawerHeader className="text-center">
-              <DrawerTitle className="text-gray-200 text-xl">메시지 작성</DrawerTitle>
-            </DrawerHeader>
-            <div className="px-4 pb-8">
-              <GuestbookForm onSubmit={handleAddEntry} />
-            </div>
-          </DrawerContent>
-        </Drawer>
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <DrawerTrigger asChild>
+          <button
+            className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white rounded-full p-3.5 shadow-lg transition-all hover:scale-110 z-20 flex items-center gap-2"
+            aria-label="메시지 작성"
+          >
+            <MessageSquare size={20} />
+            <span className="hidden sm:inline">메시지 작성</span>
+          </button>
+        </DrawerTrigger>
+        <DrawerContent className="bg-slate-800 border-slate-600 max-h-[90vh] flex flex-col">
+          <DrawerHeader className="text-center shrink-0">
+            <DrawerTitle className="text-gray-200">메시지 작성</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-8 overflow-y-auto flex-1 min-h-0">
+            <GuestbookForm onSubmit={handleAddEntry} />
+          </div>
+        </DrawerContent>
+      </Drawer>
       )}
 
       {/* Create Tree Button - 로그인하지 않은 사용자에게만 표시 */}
       {!currentUserId && (
-        <button
+      <button
           onClick={() => setIsLoginModalOpen(true)}
           className="fixed bottom-8 right-8 bg-red-600 hover:bg-red-700 text-white rounded-full p-3 shadow-lg transition-all hover:scale-110 z-20"
-          aria-label="나만의 트리 만들기"
-        >
-          <Plus size={24} />
-        </button>
+        aria-label="나만의 트리 만들기"
+      >
+        <Plus size={24} />
+      </button>
       )}
 
       {/* Login Modal */}
